@@ -22,26 +22,31 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 URL = "https://shop.royalchallengers.com/ticket"
-CHECK_INTERVAL = 900  # Check every 15 minutes (in seconds)
-SLACK_WEBHOOK = "https://hooks.slack.com/services/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"  # Replace with your Slack webhook
-SLACK_CHANNEL = "#test_nivin"  # Replace with your channel
 ALERT_MESSAGE = "🎉 RCB TICKETS ARE NOW AVAILABLE! 🎉 Go to: https://shop.royalchallengers.com/ticket"
 EXPECTED_COMING_SOON_COUNT = 7  # Expected number of "COMING SOON" elements when no tickets are available
+
+# Get secrets from environment variables
+SLACK_WEBHOOK = os.environ.get("SLACK_WEBHOOK")
+if not SLACK_WEBHOOK:
+    logger.error("SLACK_WEBHOOK environment variable is not set")
+    raise ValueError("SLACK_WEBHOOK environment variable must be set")
+
+PAGERDUTY_ROUTING_KEY = os.environ.get("PAGERDUTY_ROUTING_KEY")
+if not PAGERDUTY_ROUTING_KEY:
+    logger.error("PAGERDUTY_ROUTING_KEY environment variable is not set")
+    raise ValueError("PAGERDUTY_ROUTING_KEY environment variable must be set")
 
 def send_pagerduty_event():
     """
     Send an alert to PagerDuty using the Events API
     """
-    # Replace with your integration/routing key from PagerDuty
-    routing_key = "7961f441840e4a04c017ff70d98a7512"
-    
     url = "https://events.pagerduty.com/v2/enqueue"
     
     payload = {
-        "routing_key": routing_key,
+        "routing_key": PAGERDUTY_ROUTING_KEY,
         "event_action": "trigger",
         "payload": {
-            "summary": "RCB Tickets now available: shop.royalchallengers.com/tickets",
+            "summary": "RCB Tickets now available: shop.royalchallengers.com/ticket",
             "source": "Python Automation",
             "severity": "error"
         }
@@ -186,49 +191,30 @@ def check_ticket_availability():
                 pass
 
 def main():
-    """Main function to periodically check ticket availability."""
+    """Main function to check ticket availability once (for GitHub Actions)."""
     logger.info("Starting RCB ticket availability monitor")
     
-    tickets_available = False
-    alert_sent = False
+    tickets_available = check_ticket_availability()
     
-    while not alert_sent:
-        try:
-            tickets_available = check_ticket_availability()
-            
-            if not tickets_available and not alert_sent:
-                logger.info("Tickets are now available! Sending alerts...")
-                
-                # Send both PagerDuty and Slack alerts for redundancy
-                pagerduty_sent = send_pagerduty_event()
-                slack_sent = send_slack_message(SLACK_WEBHOOK, ALERT_MESSAGE)
-                
-                # Consider alert sent if at least one notification method worked
-                alert_sent = pagerduty_sent or slack_sent
-                
-                if alert_sent:
-                    logger.info("At least one alert sent successfully!")
-                else:
-                    logger.error("Failed to send any alerts, will try again next check")
-            
-            # Log time of next check
-            next_check = datetime.datetime.now() + datetime.timedelta(seconds=CHECK_INTERVAL)
-            logger.info(f"Next check at {next_check.strftime('%Y-%m-%d %H:%M:%S')}")
-            
-            # If we've sent the alert successfully, we can exit
-            if alert_sent:
-                logger.info("Alert sent successfully. Exiting.")
-                break
-                
-            time.sleep(CHECK_INTERVAL)
-            
-        except KeyboardInterrupt:
-            logger.info("Process interrupted by user. Exiting.")
-            break
-        except Exception as e:
-            logger.error(f"Unexpected error in main loop: {str(e)}")
-            # Sleep briefly before next attempt
-            time.sleep(60)
+    if tickets_available:
+        logger.info("Tickets are now available! Sending alerts...")
+        
+        # Send both PagerDuty and Slack alerts for redundancy
+        pagerduty_sent = send_pagerduty_event()
+        slack_sent = send_slack_message(SLACK_WEBHOOK, ALERT_MESSAGE)
+        
+        # Consider alert sent if at least one notification method worked
+        alert_sent = pagerduty_sent or slack_sent
+        
+        if alert_sent:
+            logger.info("At least one alert sent successfully!")
+            return 0
+        else:
+            logger.error("Failed to send any alerts")
+            return 1
+    else:
+        logger.info("Tickets not available yet.")
+        return 0
 
 if __name__ == "__main__":
     import sys
@@ -236,4 +222,5 @@ if __name__ == "__main__":
         check_ticket_availability()
         logger.info("Debug analysis complete. Check the log, latest_screenshot.png, and latest_dynamic_page.html for details.")
     else:
-        main()
+        exit_code = main()
+        exit(exit_code)
