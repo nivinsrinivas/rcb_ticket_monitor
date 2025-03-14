@@ -4,7 +4,6 @@ on:
   schedule:
     # Run every 30 minutes
     - cron: '*/15 * * * *'
-  workflow_dispatch:  # Allows manual triggering from GitHub UI
 
 jobs:
   monitor-tickets:
