@@ -196,7 +196,7 @@ def main():
     
     tickets_available = check_ticket_availability()
     
-    if tickets_available:
+    if not tickets_available:
         logger.info("Tickets are now available! Sending alerts...")
         
         # Send both PagerDuty and Slack alerts for redundancy
