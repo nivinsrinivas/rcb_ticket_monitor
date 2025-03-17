@@ -160,10 +160,10 @@ def check_ticket_availability():
             logger.info("TICKETS ARE AVAILABLE NOW! Found 'BUY TICKETS' elements.")
             return True
             
-        # IMPROVED LOGIC: Alert if the number of "COMING SOON" elements is less than expected
-        if len(coming_soon_elements) < EXPECTED_COMING_SOON_COUNT:
-            logger.info(f"POTENTIAL TICKET AVAILABILITY! Found only {len(coming_soon_elements)} 'COMING SOON' elements (expected {EXPECTED_COMING_SOON_COUNT}).")
-            return True
+        # # IMPROVED LOGIC: Alert if the number of "COMING SOON" elements is less than expected
+        # if len(coming_soon_elements) < EXPECTED_COMING_SOON_COUNT:
+        #     logger.info(f"POTENTIAL TICKET AVAILABILITY! Found only {len(coming_soon_elements)} 'COMING SOON' elements (expected {EXPECTED_COMING_SOON_COUNT}).")
+        #     return True
             
         # Additional check for button elements
         buttons = driver.find_elements(By.TAG_NAME, "button")
